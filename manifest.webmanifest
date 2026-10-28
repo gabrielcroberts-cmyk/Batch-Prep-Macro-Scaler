@@ -1,0 +1,37 @@
+{
+  "name": "Batch-Prep Macro Scaler",
+  "short_name": "Macro Scaler",
+  "description": "Scale whole-food batch meal prep to an exact protein target per container.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EDF0F1",
+  "theme_color": "#5B3FA0",
+  "categories": [
+    "health",
+    "fitness",
+    "food"
+  ],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

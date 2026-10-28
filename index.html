@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Batch-Prep Macro Scaler</title>
+<meta name="description" content="Scale whole-food batch meal prep to an exact protein target per container.">
+<meta name="theme-color" content="#EDF0F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111518" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Macro Scaler">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+/* Base reset (the artifact host supplied this; a standalone app needs it). */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;-webkit-tap-highlight-color:transparent}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: inputs panel left, a printed "scale ticket" of what to buy on the right; stacks on phones.
+   Accent borrows the violet of a USDA inspection stamp. */
+:root{
+  --bg:#EDF0F1; --surface:#FFFFFF; --ticket:#F8FAFA; --ink:#14191C; --muted:#5A6670; --line:#CBD3D8;
+  --accent:#5B3FA0; --accent-soft:#E9E3F5;
+  --p:#5B3FA0; --c:#2F7D6B; --f:#B7791F; --warn:#9A3B1F; --warn-soft:#F6E6DF;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111518; --surface:#181D21; --ticket:#1D2328; --ink:#E6EBEE; --muted:#93A0A9; --line:#2E363C;
+  --accent:#A890E8; --accent-soft:#2A2340; --p:#A890E8; --c:#5FC2A9; --f:#E2A84B; --warn:#F09A7A; --warn-soft:#3A2420; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111518; --surface:#181D21; --ticket:#1D2328; --ink:#E6EBEE; --muted:#93A0A9; --line:#2E363C;
+  --accent:#A890E8; --accent-soft:#2A2340; --p:#A890E8; --c:#5FC2A9; --f:#E2A84B; --warn:#F09A7A; --warn-soft:#3A2420; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:24px}
+header{display:flex;flex-direction:column;gap:6px;max-width:65ch}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,6vw,52px);line-height:1;margin:0;text-transform:uppercase;letter-spacing:.01em;text-wrap:balance}
+.lede{margin:0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:22px}
+fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:12px;min-width:0}
+legend{font-family:var(--display);font-weight:600;font-size:20px;text-transform:uppercase;letter-spacing:.03em;padding:0;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+legend .dot{width:10px;height:10px;border-radius:2px;display:inline-block}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
+input[type=number],select{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;width:100%;font-variant-numeric:tabular-nums}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.suffix{position:relative}
+.suffix input{padding-right:52px}
+.suffix span{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12px;color:var(--muted);pointer-events:none}
+.stepper{display:grid;grid-template-columns:42px 1fr 42px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--bg)}
+.stepper button{font:inherit;font-size:20px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.stepper button:hover{background:var(--accent-soft)}
+.stepper input{border:0;border-radius:0;text-align:center;background:transparent;-moz-appearance:textfield}
+.stepper input::-webkit-inner-spin-button{-webkit-appearance:none}
+.check{flex-direction:row;align-items:flex-start;gap:8px;color:var(--ink);font-weight:400;font-size:14px}
+.check input{margin-top:3px;accent-color:var(--accent)}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.custom{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.out{display:flex;flex-direction:column;gap:20px;min-width:0}
+.ticket{background:var(--ticket);border:1px solid var(--line);border-radius:4px;padding:22px 22px 18px;position:relative;font-family:var(--mono)}
+.ticket::before,.ticket::after{content:"";position:absolute;left:0;right:0;height:8px;background:radial-gradient(circle at 6px 0,var(--bg) 4px,transparent 4.5px) 0 0/12px 8px repeat-x}
+.ticket::before{top:-1px}
+.ticket::after{bottom:-1px;transform:scaleY(-1)}
+.t-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:1px dashed var(--line);padding-bottom:10px;margin-bottom:6px}
+.t-head h2{font-family:var(--display);font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0}
+.stamp{font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border:2px solid var(--accent);border-radius:50%;padding:6px 12px;transform:rotate(-6deg)}
+.buy{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:14px 0;border-bottom:1px dashed var(--line);align-items:baseline}
+.buy:last-of-type{border-bottom:0}
+.buy .name{font-family:var(--body);font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;min-width:0}
+.buy .big{font-family:var(--display);font-weight:700;font-size:40px;line-height:1;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.buy .big small{font-size:18px;font-weight:600;margin-left:3px;color:var(--muted)}
+.buy .sub{font-size:12.5px;color:var(--muted);grid-column:1/-1;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.copy{margin-top:12px;font:inherit;font-family:var(--body);font-size:14px;font-weight:600;background:var(--ink);color:var(--surface);border:0;border-radius:6px;padding:10px 16px;cursor:pointer}
+.copy:hover{opacity:.88}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.card h3{font-family:var(--display);font-size:20px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin:0}
+.macros{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:480px){.macros{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.m{display:flex;flex-direction:column;gap:2px;border-top:3px solid var(--line);padding-top:8px}
+.m.p{border-color:var(--p)}.m.c{border-color:var(--c)}.m.f{border-color:var(--f)}
+.m .v{font-family:var(--display);font-size:32px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.m .k{font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.bar{display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--line)}
+.bar span{display:block;height:100%;transition:width .25s}
+.bar .p{background:var(--p)}.bar .c{background:var(--c)}.bar .f{background:var(--f)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0}
+.totals{font-family:var(--mono);font-size:13px;color:var(--muted);display:flex;gap:6px 18px;flex-wrap:wrap}
+.totals b{color:var(--ink);font-weight:500}
+.portion{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:560px){.portion{grid-template-columns:minmax(0,1fr)}}
+.pc{display:flex;flex-direction:column;gap:8px}
+.pc .res{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.pc .res b{font-family:var(--display);font-size:28px;color:var(--ink);font-weight:700;margin-right:4px}
+.note{font-size:13.5px;background:var(--warn-soft);color:var(--warn);border-radius:6px;padding:10px 12px;margin:0}
+footer{font-size:12.5px;color:var(--muted);max-width:75ch}
+@media (prefers-reduced-motion:reduce){.bar span{transition:none}}
+</style>
+
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <span class="eyebrow">Hypertrophy meal prep · whole foods</span>
+    <h1>Batch-Prep Macro Scaler</h1>
+    <p class="lede">Set protein per meal and how many containers you're filling. Get the exact raw weight to buy and cook, plus the carb and fat to match.</p>
+  </header>
+
+  <div class="grid">
+    <form class="panel" id="form" autocomplete="off">
+      <fieldset>
+        <legend><span class="dot" style="background:var(--p)"></span>Protein</legend>
+        <div class="row">
+          <label for="protein">Protein per meal
+            <span class="suffix"><input type="number" inputmode="decimal" id="protein" min="10" max="200" step="5" value="80"><span>g</span></span>
+          </label>
+          <label for="servings">Containers
+            <span class="stepper">
+              <button type="button" id="sDown" aria-label="Fewer containers">−</button>
+              <input type="number" inputmode="decimal" id="servings" min="1" max="21" value="6">
+              <button type="button" id="sUp" aria-label="More containers">+</button>
+            </span>
+          </label>
+        </div>
+        <label for="meat">Primary protein source
+          <select id="meat"></select>
+        </label>
+        <div class="custom" id="customBox" hidden>
+          <label for="cP">Protein per 100 g raw
+            <span class="suffix"><input type="number" inputmode="decimal" id="cP" step="0.1" value="21"><span>g</span></span>
+          </label>
+          <label for="cF">Fat per 100 g raw
+            <span class="suffix"><input type="number" inputmode="decimal" id="cF" step="0.1" value="5"><span>g</span></span>
+          </label>
+        </div>
+        <label for="trim">Trim &amp; waste allowance
+          <span class="suffix"><input type="number" inputmode="decimal" id="trim" min="0" max="30" step="1" value="0"><span>%</span></span>
+        </label>
+        <label class="check" for="countSides"><input type="checkbox" id="countSides" checked>
+          <span>Count protein from the carb side toward the target <span class="hint" style="display:block">Rice and pasta carry 7–13 g protein per 100 g dry. Leaving this on hits the target exactly.</span></span>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="dot" style="background:var(--c)"></span>Carbs</legend>
+        <div class="row">
+          <label for="carbs">Carbs per meal
+            <span class="suffix"><input type="number" inputmode="decimal" id="carbs" min="0" max="300" step="5" value="75"><span>g</span></span>
+          </label>
+          <label for="carbSrc">Source
+            <select id="carbSrc"></select>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend><span class="dot" style="background:var(--f)"></span>Fat</legend>
+        <div class="row">
+          <label for="fat">Total fat per meal
+            <span class="suffix"><input type="number" inputmode="decimal" id="fat" min="0" max="150" step="1" value="20"><span>g</span></span>
+          </label>
+          <label for="fatSrc">Added fat
+            <select id="fatSrc"></select>
+          </label>
+        </div>
+        <p class="hint">Fat already in the meat and carb counts first. Only the gap is filled with added fat.</p>
+      </fieldset>
+    </form>
+
+    <section class="out" aria-live="polite">
+      <div class="ticket">
+        <div class="t-head">
+          <h2>Buy &amp; cook</h2>
+          <span class="stamp" id="stamp">6 × 80 g</span>
+        </div>
+        <div class="buy" id="buyMeat"></div>
+        <div class="buy" id="buyCarb"></div>
+        <div class="buy" id="buyFat"></div>
+        <button type="button" class="copy" id="copyBtn">Copy shopping list</button>
+        <span class="hint" id="copyMsg" style="margin-left:10px"></span>
+      </div>
+
+      <p class="note" id="warn" hidden></p>
+
+      <div class="card">
+        <h3>Each container</h3>
+        <div class="macros">
+          <div class="m p"><span class="v" id="mP">0</span><span class="k">Protein g</span></div>
+          <div class="m c"><span class="v" id="mC">0</span><span class="k">Carbs g</span></div>
+          <div class="m f"><span class="v" id="mF">0</span><span class="k">Fat g</span></div>
+          <div class="m"><span class="v" id="mK">0</span><span class="k">kcal</span></div>
+        </div>
+        <div class="bar" aria-hidden="true"><span class="p" id="bP"></span><span class="c" id="bC"></span><span class="f" id="bF"></span></div>
+        <div class="legend" id="legend"></div>
+        <div class="totals" id="totals"></div>
+      </div>
+
+      <div class="card">
+        <h3>Portion the cooked batch</h3>
+        <p class="hint" style="margin-top:-6px">Weight changes when food cooks. Weigh each finished batch and enter the total. The estimate fills in until you do.</p>
+        <div class="portion">
+          <div class="pc">
+            <label for="cookedMeat"><span id="cmLabel">Cooked protein, whole batch</span>
+              <span class="suffix"><input type="number" inputmode="decimal" id="cookedMeat" min="0" step="1" placeholder=""><span>g</span></span>
+            </label>
+            <span class="res" id="perMeat"></span>
+          </div>
+          <div class="pc" id="pcCarb">
+            <label for="cookedCarb"><span id="ccLabel">Cooked carbs, whole batch</span>
+              <span class="suffix"><input type="number" inputmode="decimal" id="cookedCarb" min="0" step="1" placeholder=""><span>g</span></span>
+            </label>
+            <span class="res" id="perCarb"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>Nutrition values are per 100 g raw (dry for grains), rounded from USDA FoodData Central entries. Cooked-weight estimates use typical yields and vary with cook method, so weighing the finished batch is the reliable way to portion. Brands differ; use the custom source to enter numbers from your package label.</footer>
+</main>
+
+<script>
+(function(){
+  const LB = 453.592;
+  // per 100 g raw: protein, fat, carbs; yield = cooked weight / raw weight
+  const MEATS = {
+    chicken:  {n:"Chicken breast, boneless skinless", p:22.5, f:2.6, c:0, y:0.75},
+    thigh:    {n:"Chicken thigh, boneless skinless", p:19.7, f:4.1, c:0, y:0.72},
+    beef96:   {n:"Ground beef 96/4", p:21.5, f:4.0, c:0, y:0.78},
+    beef93:   {n:"Ground beef 93/7", p:20.9, f:7.0, c:0, y:0.75},
+    beef90:   {n:"Ground beef 90/10", p:20.0, f:10.0, c:0, y:0.73},
+    turkey93: {n:"Ground turkey 93/7", p:18.7, f:8.3, c:0, y:0.75},
+    sirloin:  {n:"Top sirloin, trimmed", p:22.5, f:5.0, c:0, y:0.72},
+    pork:     {n:"Pork tenderloin", p:20.7, f:3.5, c:0, y:0.75},
+    cod:      {n:"Cod fillet", p:17.8, f:0.7, c:0, y:0.80},
+    salmon:   {n:"Atlantic salmon, farmed", p:20.4, f:13.4, c:0, y:0.80},
+    custom:   {n:"Custom (from label)", p:21, f:5, c:0, y:0.75}
+  };
+  // gpc = grams per US cup dry; yield for cooked
+  const CARBS = {
+    white:   {n:"White rice, long grain (dry)", p:7.1, f:0.7, c:80.0, y:3.0, gpc:185},
+    jasmine: {n:"Jasmine rice (dry)", p:7.0, f:0.5, c:78.0, y:3.0, gpc:185},
+    brown:   {n:"Brown rice (dry)", p:7.9, f:2.9, c:76.2, y:2.6, gpc:190},
+    pasta:   {n:"Pasta (dry)", p:13.0, f:1.5, c:75.0, y:2.25, gpc:null},
+    oats:    {n:"Rolled oats (dry)", p:13.2, f:6.5, c:67.7, y:null, gpc:81},
+    potato:  {n:"Russet potatoes (raw)", p:2.1, f:0.1, c:18.1, y:0.78, gpc:null},
+    sweet:   {n:"Sweet potatoes (raw)", p:1.6, f:0.1, c:20.1, y:0.80, gpc:null},
+    none:    {n:"No carb side", p:0, f:0, c:0, y:null, gpc:null}
+  };
+  // gpt = grams per tablespoon
+  const FATS = {
+    olive:   {n:"Extra virgin olive oil", f:100, p:0, c:0, gpt:13.5},
+    avocado: {n:"Avocado oil", f:100, p:0, c:0, gpt:13.6},
+    butter:  {n:"Butter", f:81.1, p:0.9, c:0.1, gpt:14.2},
+    none:    {n:"No added fat", f:0, p:0, c:0, gpt:null}
+  };
+
+  const $ = id => document.getElementById(id);
+  const fill = (sel, obj) => { sel.innerHTML = Object.entries(obj).map(([k,v]) => `<option value="${k}">${v.n}</option>`).join(""); };
+  fill($("meat"), MEATS); fill($("carbSrc"), CARBS); fill($("fatSrc"), FATS);
+
+  const FIELDS = ["protein","servings","meat","cP","cF","trim","countSides","carbs","carbSrc","fat","fatSrc"];
+  const KEY = "bpms-v1";
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (saved) FIELDS.forEach(k => { if (saved[k] === undefined) return; const el = $(k); if (el.type === "checkbox") el.checked = saved[k]; else el.value = saved[k]; });
+  } catch(e) {}
+  function save(){ try { const o = {}; FIELDS.forEach(k => { const el = $(k); o[k] = el.type === "checkbox" ? el.checked : el.value; }); localStorage.setItem(KEY, JSON.stringify(o)); } catch(e) {} }
+
+  const num = (id, d=0) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : d; };
+  const r0 = v => Math.round(v).toLocaleString();
+  const r1 = v => (Math.round(v*10)/10).toLocaleString(undefined,{maximumFractionDigits:1});
+  const lb = g => (g/LB).toFixed(2);
+  const cupStr = cups => { const q = Math.round(cups*4)/4; const w = Math.floor(q), fr = q - w; const fs = {0:"",0.25:"¼",0.5:"½",0.75:"¾"}[fr] || ""; return (w ? w : (fs ? "" : "0")) + fs + (q === 1 ? " cup" : " cups"); };
+
+  let last = null;
+
+  function render(){
+    const P = num("protein",80), N = Math.max(1, Math.min(21, Math.round(num("servings",6))));
+    const meatKey = $("meat").value, carbKey = $("carbSrc").value, fatKey = $("fatSrc").value;
+    $("customBox").hidden = meatKey !== "custom";
+    const meat = meatKey === "custom" ? {...MEATS.custom, p:num("cP",21), f:num("cF",5)} : MEATS[meatKey];
+    const carb = CARBS[carbKey], fat = FATS[fatKey];
+    const C = num("carbs",0), F = num("fat",0), trim = num("trim",0)/100;
+    const countSides = $("countSides").checked;
+    const warns = [];
+
+    // carb side (independent of meat)
+    const carbRaw = carb.c > 0 ? (C*N)/(carb.c/100) : 0;
+    const carbP = carbRaw*carb.p/100, carbF = carbRaw*carb.f/100;
+
+    // protein from meat
+    let need = P*N - (countSides ? carbP : 0);
+    if (meat.p <= 0) { need = 0; warns.push("Enter the protein per 100 g for your custom source."); }
+    if (need < 0) { warns.push("The carb side alone covers the protein target. Raise protein per meal or turn off side counting."); need = 0; }
+    const meatCook = meat.p > 0 ? need/(meat.p/100) : 0;     // raw weight that goes in the pan
+    const meatBuy = meatCook*(1+trim);                       // raw weight to purchase
+    const meatF = meatCook*meat.f/100;
+
+    // added fat fills the gap
+    const baseFat = meatF + carbF;
+    let addFat = 0;
+    if (fat.f > 0) {
+      const gap = F*N - baseFat;
+      if (gap < 0) warns.push(`${meat.n} and the carb side already supply ${r1(baseFat/N)} g fat per container, above your ${r0(F)} g target. No added fat needed; a leaner cut would bring you closer.`);
+      addFat = Math.max(0, gap)/(fat.f/100);
+    } else if (baseFat/N > F + 0.5) {
+      warns.push(`The meat and carb side supply ${r1(baseFat/N)} g fat per container, above your ${r0(F)} g target.`);
+    }
+
+    const tot = {
+      p: meatCook*meat.p/100 + carbP + addFat*fat.p/100,
+      c: carbRaw*carb.c/100 + addFat*fat.c/100,
+      f: baseFat + addFat*fat.f/100
+    };
+    const per = {p:tot.p/N, c:tot.c/N, f:tot.f/N};
+    per.k = per.p*4 + per.c*4 + per.f*9;
+
+    // ticket
+    $("stamp").textContent = `${N} × ${r0(P)} g`;
+    $("buyMeat").innerHTML = `
+      <span class="name"><span class="dot" style="background:var(--p);width:10px;height:10px;border-radius:2px;display:inline-block;flex:none"></span>${meat.n}</span>
+      <span class="big">${lb(meatBuy)}<small>lb</small></span>
+      <span class="sub"><span>${r0(meatBuy)} g raw${trim>0 ? ` · ${r0(meatCook)} g after ${r0(trim*100)}% trim` : ""}</span><span>${r0(meatCook/N)} g raw per container</span></span>`;
+    if (carb.c > 0) {
+      const cupNote = carb.gpc ? ` · about ${cupStr(carbRaw/carb.gpc)}` : "";
+      $("buyCarb").innerHTML = `
+        <span class="name"><span style="background:var(--c);width:10px;height:10px;border-radius:2px;display:inline-block;flex:none"></span>${carb.n}</span>
+        <span class="big">${lb(carbRaw)}<small>lb</small></span>
+        <span class="sub"><span>${r0(carbRaw)} g${cupNote}</span><span>${r0(carbRaw/N)} g per container</span></span>`;
+      $("buyCarb").hidden = false;
+    } else $("buyCarb").hidden = true;
+    if (fat.f > 0) {
+      const tbsp = fat.gpt ? addFat/fat.gpt : 0;
+      $("buyFat").innerHTML = `
+        <span class="name"><span style="background:var(--f);width:10px;height:10px;border-radius:2px;display:inline-block;flex:none"></span>${fat.n}</span>
+        <span class="big">${r1(tbsp)}<small>tbsp</small></span>
+        <span class="sub"><span>${r0(addFat)} g into the batch</span><span>${r1(addFat/N)} g per container</span></span>`;
+      $("buyFat").hidden = false;
+    } else $("buyFat").hidden = true;
+
+    // macros
+    $("mP").textContent = r0(per.p); $("mC").textContent = r0(per.c); $("mF").textContent = r0(per.f); $("mK").textContent = r0(per.k);
+    const kp = per.p*4, kc = per.c*4, kf = per.f*9, kt = kp+kc+kf || 1;
+    $("bP").style.width = (kp/kt*100)+"%"; $("bC").style.width = (kc/kt*100)+"%"; $("bF").style.width = (kf/kt*100)+"%";
+    $("legend").innerHTML = `<span><i style="background:var(--p)"></i>Protein ${r0(kp/kt*100)}% kcal</span><span><i style="background:var(--c)"></i>Carbs ${r0(kc/kt*100)}%</span><span><i style="background:var(--f)"></i>Fat ${r0(kf/kt*100)}%</span>`;
+    $("totals").innerHTML = `<span>Whole batch:</span><span><b>${r0(tot.p)}</b> g P</span><span><b>${r0(tot.c)}</b> g C</span><span><b>${r0(tot.f)}</b> g F</span><span><b>${r0(per.k*N)}</b> kcal</span>`;
+
+    // portioning
+    const estMeat = meatCook*meat.y;
+    $("cmLabel").textContent = `Cooked ${meat.n.split(",")[0].toLowerCase()}, whole batch`;
+    $("cookedMeat").placeholder = `est. ${r0(estMeat)}`;
+    const cm = parseFloat($("cookedMeat").value);
+    const mUse = isFinite(cm) && cm > 0 ? cm : estMeat;
+    $("perMeat").innerHTML = `<b>${r0(mUse/N)}</b>g per container${isFinite(cm)&&cm>0 ? " (weighed)" : " (estimate)"}`;
+    if (carb.c > 0) {
+      $("pcCarb").hidden = false;
+      $("ccLabel").textContent = `Cooked ${carb.n.replace(/\s*\(.*\)/,"").toLowerCase()}, whole batch`;
+      const estCarb = carb.y ? carbRaw*carb.y : null;
+      $("cookedCarb").placeholder = estCarb ? `est. ${r0(estCarb)}` : "weigh after cooking";
+      const cc = parseFloat($("cookedCarb").value);
+      const cUse = isFinite(cc) && cc > 0 ? cc : estCarb;
+      $("perCarb").innerHTML = cUse ? `<b>${r0(cUse/N)}</b>g per container${isFinite(cc)&&cc>0 ? " (weighed)" : " (estimate)"}` : `Portion ${r0(carbRaw/N)} g dry per container before cooking.`;
+    } else $("pcCarb").hidden = true;
+
+    $("warn").hidden = !warns.length; $("warn").textContent = warns.join(" ");
+
+    last = {N, P, meat, meatBuy, carb, carbRaw, fat, addFat, per};
+    save();
+  }
+
+  $("copyBtn").addEventListener("click", () => {
+    if (!last) return;
+    const L = last, lines = [`Batch prep: ${L.N} containers × ${r0(L.P)} g protein`, `- ${L.meat.n}: ${lb(L.meatBuy)} lb (${r0(L.meatBuy)} g raw)`];
+    if (L.carb.c > 0) lines.push(`- ${L.carb.n}: ${lb(L.carbRaw)} lb (${r0(L.carbRaw)} g)`);
+    if (L.fat.f > 0 && L.addFat > 0) lines.push(`- ${L.fat.n}: ${r1(L.addFat/(L.fat.gpt||1))} tbsp (${r0(L.addFat)} g)`);
+    lines.push(`Per container: ${r0(L.per.p)} P / ${r0(L.per.c)} C / ${r0(L.per.f)} F · ${r0(L.per.k)} kcal`);
+    const text = lines.join("\n");
+    const ok = () => { $("copyMsg").textContent = "Copied"; setTimeout(()=>$("copyMsg").textContent="",1800); };
+    try {
+      navigator.clipboard.writeText(text).then(ok).catch(() => { $("copyMsg").textContent = "Copy blocked here. Select the ticket text instead."; });
+    } catch(e) { $("copyMsg").textContent = "Copy blocked here. Select the ticket text instead."; }
+  });
+
+  $("sDown").addEventListener("click", () => { $("servings").value = Math.max(1, num("servings",6)-1); $("cookedMeat").value=""; $("cookedCarb").value=""; render(); });
+  $("sUp").addEventListener("click", () => { $("servings").value = Math.min(21, num("servings",6)+1); $("cookedMeat").value=""; $("cookedCarb").value=""; render(); });
+  $("form").addEventListener("input", render);
+  $("form").addEventListener("change", render);
+  $("form").addEventListener("submit", e => e.preventDefault());
+  ["cookedMeat","cookedCarb"].forEach(id => $(id).addEventListener("input", render));
+  render();
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
